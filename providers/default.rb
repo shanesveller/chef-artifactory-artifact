@@ -6,7 +6,7 @@ end
 
 include ArtifactoryArtifact::Helper
 
-def manage_resource(new_resource)
+def manage_resource(new_resource, action = :create)
   request_headers = artifactory_headers(
     :username => new_resource.artifactory_username,
     :password => new_resource.artifactory_password,
@@ -38,11 +38,12 @@ def manage_resource(new_resource)
     ::Chef::Log.warn(error)
   end
 
-  directory ::File.dirname(new_resource.name) do
+  dir = directory ::File.dirname(new_resource.name) do
     recursive true
   end
 
-  remote_file new_resource.name do
+  rfile = remote_file new_resource.name do
+    action action
     backup false
     checksum artifact_sha256sum
     headers request_headers
@@ -53,19 +54,21 @@ def manage_resource(new_resource)
     mode new_resource.mode if new_resource.mode
     owner new_resource.owner if new_resource.owner
   end
+
+  return rfile.updated_by_last_action? || dir.updated_by_last_action?
 end
 
 action :create do
-  manage_resource(new_resource)
-  new_resource.updated_by_last_action(true)
+  updated = manage_resource(new_resource, :create)
+  new_resource.updated_by_last_action(updated)
 end
 
 action :create_if_missing do
-  manage_resource(new_resource)
-  new_resource.updated_by_last_action(true)
+  updated = manage_resource(new_resource, :create_if_missing)
+  new_resource.updated_by_last_action(updated)
 end
 
 action :delete do
-  manage_resource(new_resource)
-  new_resource.updated_by_last_action(true)
+  updated = manage_resource(new_resource, :delete)
+  new_resource.updated_by_last_action(updated)
 end
